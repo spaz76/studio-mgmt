@@ -1,5 +1,5 @@
 // Atnachta Studio Management — Prisma Schema
-// Multi-tenant SaaS — Phase 1
+// Multi-tenant SaaS — Phase 2 (Full Schema)
 
 generator client {
   provider = "prisma-client-js"
@@ -46,29 +46,86 @@ enum PlanType {
   ENTERPRISE
 }
 
+enum WorkshopStatus {
+  draft
+  open
+  pending_minimum
+  confirmed
+  full
+  cancelled
+  postponed
+  completed
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  waitlist
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  partial
+  refunded
+  cancelled
+}
+
+enum ReminderStatus {
+  open
+  in_progress
+  done
+}
+
+enum ReminderType {
+  workshop
+  seasonal
+  material
+  manual
+}
+
+enum StockLogAction {
+  purchase
+  consumption
+  adjustment
+  loss
+}
+
 // ─────────────────────────────────────────────
 // STUDIO
 // ─────────────────────────────────────────────
 
 model Studio {
-  id              String   @id @default(cuid())
-  name            String
-  publicName      String
-  slug            String   @unique
-  logoUrl         String?
-  primaryColor    String?
-  secondaryColor  String?
-  contactEmail    String?
-  contactPhone    String?
-  address         String?
-  planType        PlanType @default(FREE)
-  maxUsers        Int      @default(5)
-  maxWorkshopsPerMonth Int @default(20)
-  maxProducts     Int      @default(100)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  name                 String
+  publicName           String
+  slug                 String   @unique
+  logoUrl              String?
+  primaryColor         String?
+  secondaryColor       String?
+  contactEmail         String?
+  contactPhone         String?
+  address              String?
+  planType             PlanType @default(FREE)
+  maxUsers             Int      @default(5)
+  maxWorkshopsPerMonth Int      @default(20)
+  maxProducts          Int      @default(100)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  members  StudioMember[]
+  members           StudioMember[]
+  customers         Customer[]
+  workshopTemplates WorkshopTemplate[]
+  workshopEvents    WorkshopEvent[]
+  bookings          Booking[]
+  payments          Payment[]
+  products          Product[]
+  productVariants   ProductVariant[]
+  suppliers         Supplier[]
+  materials         Material[]
+  materialStockLogs MaterialStockLog[]
+  reminders         Reminder[]
 }
 
 // ─────────────────────────────────────────────
@@ -85,9 +142,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
+  accounts          Account[]
+  sessions          Session[]
   studioMemberships StudioMember[]
+  workshopEvents    WorkshopEvent[]    @relation("WorkshopCreatedBy")
+  materialStockLogs MaterialStockLog[]
+  remindersCreated  Reminder[]         @relation("ReminderCreatedBy")
+  remindersAssigned Reminder[]         @relation("ReminderAssignedTo")
 }
 
 // ─────────────────────────────────────────────
@@ -95,21 +156,21 @@ model User {
 // ─────────────────────────────────────────────
 
 model StudioMember {
-  id          String   @id @default(cuid())
-  studioId    String
-  userId      String
-  role        Role
-  // Owner can grant/revoke specific permissions per user (overrides role defaults)
+  id                 String       @id @default(cuid())
+  studioId           String
+  userId             String
+  role               Role
   extraPermissions   Permission[]
   revokedPermissions Permission[]
-  isActive    Boolean  @default(true)
-  invitedAt   DateTime @default(now())
-  joinedAt    DateTime?
+  isActive           Boolean      @default(true)
+  invitedAt          DateTime     @default(now())
+  joinedAt           DateTime?
 
   studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([studioId, userId])
+  @@index([studioId])
 }
 
 // ─────────────────────────────────────────────
@@ -150,4 +211,307 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMERS
+// ─────────────────────────────────────────────
+
+model Customer {
+  id        String   @id @default(cuid())
+  studioId  String
+  name      String
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio   Studio    @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([studioId])
+  @@index([studioId, email])
+}
+
+// ─────────────────────────────────────────────
+// WORKSHOP TEMPLATES
+// ─────────────────────────────────────────────
+
+model WorkshopTemplate {
+  id              String   @id @default(cuid())
+  studioId        String
+  name            String
+  description     String?
+  durationMinutes Int      @default(120)
+  minParticipants Int      @default(1)
+  maxParticipants Int      @default(12)
+  defaultPrice    Decimal  @default(0) @db.Decimal(10, 2)
+  tags            String[]
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  studio         Studio          @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  workshopEvents WorkshopEvent[]
+
+  @@index([studioId])
+}
+
+// ─────────────────────────────────────────────
+// WORKSHOP EVENTS
+// ─────────────────────────────────────────────
+
+model WorkshopEvent {
+  id                   String         @id @default(cuid())
+  studioId             String
+  templateId           String?
+  title                String
+  description          String?
+  startsAt             DateTime
+  endsAt               DateTime
+  status               WorkshopStatus @default(draft)
+  minParticipants      Int            @default(1)
+  maxParticipants      Int            @default(12)
+  price                Decimal        @default(0) @db.Decimal(10, 2)
+  location             String?
+  googleCalendarEventId String?
+  notes                String?
+  createdById          String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  studio    Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  template  WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy User?             @relation("WorkshopCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  bookings  Booking[]
+  reminders Reminder[]
+
+  @@index([studioId])
+  @@index([studioId, status])
+  @@index([studioId, startsAt])
+}
+
+// ─────────────────────────────────────────────
+// BOOKINGS
+// ─────────────────────────────────────────────
+
+model Booking {
+  id               String        @id @default(cuid())
+  studioId         String
+  workshopEventId  String
+  customerId       String
+  participantCount Int           @default(1)
+  status           BookingStatus @default(pending)
+  notes            String?
+  publicToken      String        @unique @default(cuid())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  studio        Studio        @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  workshopEvent WorkshopEvent @relation(fields: [workshopEventId], references: [id], onDelete: Cascade)
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  payments      Payment[]
+
+  @@index([studioId])
+  @@index([workshopEventId])
+  @@index([customerId])
+}
+
+// ─────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────
+
+model Payment {
+  id        String        @id @default(cuid())
+  studioId  String
+  bookingId String
+  amount    Decimal       @db.Decimal(10, 2)
+  status    PaymentStatus @default(pending)
+  notes     String?
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  studio  Studio  @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([studioId])
+  @@index([bookingId])
+  @@index([studioId, status])
+}
+
+// ─────────────────────────────────────────────
+// PRODUCTS
+// ─────────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(cuid())
+  studioId    String
+  name        String
+  description String?
+  skuBase     String
+  category    String?
+  imageUrl    String?
+  isSeasonal  Boolean  @default(false)
+  seasonStart Int?     // month number 1–12
+  seasonEnd   Int?     // month number 1–12
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio   Studio           @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  variants ProductVariant[]
+
+  @@unique([studioId, skuBase])
+  @@index([studioId])
+  @@index([studioId, category])
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT VARIANTS
+// ─────────────────────────────────────────────
+
+model ProductVariant {
+  id                String   @id @default(cuid())
+  studioId          String
+  productId         String
+  name              String
+  sku               String   @unique
+  price             Decimal  @default(0) @db.Decimal(10, 2)
+  stockQuantity     Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  barcode           String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  studio  Studio  @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([studioId])
+  @@index([productId])
+}
+
+// ─────────────────────────────────────────────
+// SUPPLIERS
+// ─────────────────────────────────────────────
+
+model Supplier {
+  id          String   @id @default(cuid())
+  studioId    String
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  website     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio            Studio             @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  materialSuppliers MaterialSupplier[]
+
+  @@index([studioId])
+}
+
+// ─────────────────────────────────────────────
+// MATERIALS
+// ─────────────────────────────────────────────
+
+model Material {
+  id               String   @id @default(cuid())
+  studioId         String
+  name             String
+  description      String?
+  unit             String   @default("יחידה")
+  stockQuantity    Decimal  @default(0) @db.Decimal(10, 3)
+  lowStockThreshold  Decimal  @default(5) @db.Decimal(10, 3)
+  orangeThreshold  Decimal  @default(10) @db.Decimal(10, 3)
+  redThreshold     Decimal  @default(3) @db.Decimal(10, 3)
+  barcode          String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  studio            Studio             @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  materialSuppliers MaterialSupplier[]
+  stockLogs         MaterialStockLog[]
+  reminders         Reminder[]
+
+  @@index([studioId])
+}
+
+// ─────────────────────────────────────────────
+// MATERIAL <-> SUPPLIER (join with extra data)
+// ─────────────────────────────────────────────
+
+model MaterialSupplier {
+  id           String   @id @default(cuid())
+  materialId   String
+  supplierId   String
+  pricePerUnit Decimal? @db.Decimal(10, 2)
+  isPreferred  Boolean  @default(false)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, supplierId])
+  @@index([materialId])
+  @@index([supplierId])
+}
+
+// ─────────────────────────────────────────────
+// MATERIAL STOCK LOG
+// ─────────────────────────────────────────────
+
+model MaterialStockLog {
+  id           String         @id @default(cuid())
+  studioId     String
+  materialId   String
+  action       StockLogAction
+  quantity     Decimal        @db.Decimal(10, 3)
+  notes        String?
+  performedById String?
+  createdAt    DateTime       @default(now())
+
+  studio      Studio   @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  performedBy User?    @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([studioId])
+  @@index([materialId])
+}
+
+// ─────────────────────────────────────────────
+// REMINDERS
+// ─────────────────────────────────────────────
+
+model Reminder {
+  id                    String         @id @default(cuid())
+  studioId              String
+  title                 String
+  body                  String?
+  status                ReminderStatus @default(open)
+  type                  ReminderType   @default(manual)
+  dueAt                 DateTime?
+  createdById           String?
+  assignedToId          String?
+  relatedWorkshopEventId String?
+  relatedMaterialId     String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  studio               Studio         @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  createdBy            User?          @relation("ReminderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedTo           User?          @relation("ReminderAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  relatedWorkshopEvent WorkshopEvent? @relation(fields: [relatedWorkshopEventId], references: [id], onDelete: SetNull)
+  relatedMaterial      Material?      @relation(fields: [relatedMaterialId], references: [id], onDelete: SetNull)
+
+  @@index([studioId])
+  @@index([studioId, status])
+  @@index([studioId, dueAt])
 }
