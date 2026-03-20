@@ -1,9 +1,7 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wdth,wght@75..125,100..900&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-
-/* Hebrew RTL Font */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wdth,wght@75..125,100..900&display=swap");
 
 @custom-variant dark (&:is(.dark *));
 
