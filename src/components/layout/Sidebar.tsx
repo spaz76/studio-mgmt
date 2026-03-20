@@ -17,7 +17,14 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "לוח בקרה", icon: LayoutDashboard },
-  { href: "/workshops", label: "סדנאות", icon: CalendarDays },
+  {
+    href: "/workshops",
+    label: "סדנאות",
+    icon: CalendarDays,
+    children: [
+      { href: "/workshops/templates", label: "תבניות" },
+    ],
+  },
   { href: "/customers", label: "לקוחות", icon: Users },
   { href: "/products", label: "מוצרים", icon: Package },
   { href: "/materials", label: "חומרים", icon: FlaskConical },
@@ -83,6 +90,31 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                   <Icon className="h-5 w-5 shrink-0" />
                   <span>{item.label}</span>
                 </Link>
+                {"children" in item && item.children && isActive && (
+                  <ul className="mt-1 mr-8 space-y-1">
+                    {item.children.map((child) => {
+                      const isChildActive =
+                        pathname === child.href ||
+                        pathname.startsWith(child.href + "/");
+                      return (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            onClick={onClose}
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
+                              isChildActive
+                                ? "font-medium text-sidebar-primary"
+                                : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                            )}
+                          >
+                            {child.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </li>
             );
           })}
