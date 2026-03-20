@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import Apple from "next-auth/providers/apple";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -19,6 +20,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    Apple({
+      clientId: process.env.APPLE_ID!,
+      clientSecret: process.env.APPLE_SECRET!,
+      profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.name?.firstName
+            ? `${profile.name.firstName} ${profile.name.lastName ?? ""}`.trim()
+            : null,
+          email: profile.email,
+        };
+      },
     }),
     CredentialsProvider({
       name: "credentials",
