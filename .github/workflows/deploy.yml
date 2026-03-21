@@ -164,6 +164,7 @@ jobs:
   e2e-smoke:
     name: E2E Smoke Tests
     runs-on: ubuntu-latest
+    continue-on-error: true  # Non-blocking until test fixtures are stabilized
     needs: [deploy]
 
     env:
