@@ -12,6 +12,7 @@ let _client: PrismaClient | undefined;
 export function getTestPrisma(): PrismaClient {
   if (!_client) {
     _client = new PrismaClient({
+      datasourceUrl: process.env.DATABASE_URL,
       log: process.env.DEBUG_PRISMA ? ["query", "error"] : ["error"],
     });
   }

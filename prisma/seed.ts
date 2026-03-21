@@ -15,7 +15,7 @@ const useNeon =
 
 const prisma = useNeon
   ? new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
-  : new PrismaClient();
+  : new PrismaClient({ datasourceUrl: connectionString });
 
 async function main() {
   const email = process.env.SEED_OWNER_EMAIL ?? "owner@studio.local";

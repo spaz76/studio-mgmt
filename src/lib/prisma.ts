@@ -23,7 +23,7 @@ function createPrismaClient() {
     return new PrismaClient({ adapter, log });
   }
 
-  return new PrismaClient({ log });
+  return new PrismaClient({ datasourceUrl: connectionString, log });
 }
 
 const globalForPrisma = globalThis as unknown as {
