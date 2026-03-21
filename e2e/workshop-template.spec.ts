@@ -6,7 +6,7 @@ async function loginAs(page: import("@playwright/test").Page, email: string, pas
   await page.goto("/login");
   await page.getByLabel(/email|אימייל/i).fill(email);
   await page.getByLabel(/password|סיסמה/i).fill(password);
-  await page.getByRole("button", { name: /sign in|כניסה/i }).click();
+  await page.getByRole("button", { name: /^כניסה$/ }).click();
   await page.waitForURL(/dashboard/);
 }
 

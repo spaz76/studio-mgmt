@@ -10,14 +10,14 @@ test.describe("Login flow", () => {
     await page.goto("/login");
     await expect(page.getByLabel(/email|אימייל/i)).toBeVisible();
     await expect(page.getByLabel(/password|סיסמה/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /sign in|כניסה/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^כניסה$/ })).toBeVisible();
   });
 
   test("logs in with valid credentials", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel(/email|אימייל/i).fill("owner@studio.local");
     await page.getByLabel(/password|סיסמה/i).fill("changeme123");
-    await page.getByRole("button", { name: /sign in|כניסה/i }).click();
+    await page.getByRole("button", { name: /^כניסה$/ }).click();
 
     // Should land on dashboard after successful login
     await expect(page).toHaveURL(/dashboard/);
@@ -27,7 +27,7 @@ test.describe("Login flow", () => {
     await page.goto("/login");
     await page.getByLabel(/email|אימייל/i).fill("wrong@example.com");
     await page.getByLabel(/password|סיסמה/i).fill("wrongpassword");
-    await page.getByRole("button", { name: /sign in|כניסה/i }).click();
+    await page.getByRole("button", { name: /^כניסה$/ }).click();
 
     // Should stay on login page and show an error
     await expect(page).toHaveURL(/login/);
