@@ -92,6 +92,21 @@ enum StockLogAction {
   loss
 }
 
+enum WorkshopType {
+  REGULAR
+  RECURRING
+  SEASONAL
+  EVENT
+  PARENT_CHILD
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
 // ─────────────────────────────────────────────
 // STUDIO
 // ─────────────────────────────────────────────
@@ -239,18 +254,45 @@ model Customer {
 // ─────────────────────────────────────────────
 
 model WorkshopTemplate {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   studioId        String
   name            String
   description     String?
-  durationMinutes Int      @default(120)
-  minParticipants Int      @default(1)
-  maxParticipants Int      @default(12)
-  defaultPrice    Decimal  @default(0) @db.Decimal(10, 2)
+  durationMinutes Int           @default(120)
+  minParticipants Int           @default(1)
+  maxParticipants Int           @default(12)
+  defaultPrice    Decimal       @default(0) @db.Decimal(10, 2)
   tags            String[]
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean       @default(true)
+
+  // Advanced: Workshop Type
+  workshopType    WorkshopType  @default(REGULAR)
+
+  // Advanced: Recurrence (RECURRING)
+  recurrenceFrequency  RecurrenceFrequency?
+  recurrenceDayOfWeek  Int?   // 0=Sunday … 6=Saturday
+
+  // Advanced: Seasonal (SEASONAL)
+  seasonStartMonth             Int?   // 1–12
+  seasonEndMonth               Int?   // 1–12
+  seasonReminderDays           Int[]
+  seasonPublishLeadDays        Int?
+  seasonPrepLeadDays           Int?
+  seasonOpenRegistrationDays   Int?
+  seasonCloseRegistrationDays  Int?
+
+  // Advanced: Event (EVENT)
+  eventContactName     String?
+  eventContactPhone    String?
+  eventSpecialRequests String?
+
+  // Advanced: Parent-Child (PARENT_CHILD)
+  ageRangeMin              Int?
+  ageRangeMax              Int?
+  requiresAdultSupervision Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   studio         Studio          @relation(fields: [studioId], references: [id], onDelete: Cascade)
   workshopEvents WorkshopEvent[]

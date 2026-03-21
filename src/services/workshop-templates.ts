@@ -4,7 +4,7 @@
  * and integration tests with an injected client.
  */
 
-import type { PrismaClient } from "@/generated/prisma";
+import type { PrismaClient, WorkshopType, RecurrenceFrequency } from "@/generated/prisma";
 
 export interface CreateTemplateInput {
   name: string;
@@ -15,6 +15,23 @@ export interface CreateTemplateInput {
   defaultPrice?: number;
   tags?: string[];
   isActive?: boolean;
+  // Advanced
+  workshopType?: WorkshopType;
+  recurrenceFrequency?: RecurrenceFrequency | null;
+  recurrenceDayOfWeek?: number | null;
+  seasonStartMonth?: number | null;
+  seasonEndMonth?: number | null;
+  seasonReminderDays?: number[];
+  seasonPublishLeadDays?: number | null;
+  seasonPrepLeadDays?: number | null;
+  seasonOpenRegistrationDays?: number | null;
+  seasonCloseRegistrationDays?: number | null;
+  eventContactName?: string | null;
+  eventContactPhone?: string | null;
+  eventSpecialRequests?: string | null;
+  ageRangeMin?: number | null;
+  ageRangeMax?: number | null;
+  requiresAdultSupervision?: boolean;
 }
 
 export type UpdateTemplateInput = Partial<CreateTemplateInput>;
@@ -51,6 +68,22 @@ export async function createTemplate(
       defaultPrice: input.defaultPrice ?? 0,
       tags: input.tags ?? [],
       isActive: input.isActive ?? true,
+      workshopType: input.workshopType ?? "REGULAR",
+      recurrenceFrequency: input.recurrenceFrequency ?? null,
+      recurrenceDayOfWeek: input.recurrenceDayOfWeek ?? null,
+      seasonStartMonth: input.seasonStartMonth ?? null,
+      seasonEndMonth: input.seasonEndMonth ?? null,
+      seasonReminderDays: input.seasonReminderDays ?? [],
+      seasonPublishLeadDays: input.seasonPublishLeadDays ?? null,
+      seasonPrepLeadDays: input.seasonPrepLeadDays ?? null,
+      seasonOpenRegistrationDays: input.seasonOpenRegistrationDays ?? null,
+      seasonCloseRegistrationDays: input.seasonCloseRegistrationDays ?? null,
+      eventContactName: input.eventContactName ?? null,
+      eventContactPhone: input.eventContactPhone ?? null,
+      eventSpecialRequests: input.eventSpecialRequests ?? null,
+      ageRangeMin: input.ageRangeMin ?? null,
+      ageRangeMax: input.ageRangeMax ?? null,
+      requiresAdultSupervision: input.requiresAdultSupervision ?? true,
     },
   });
 }
@@ -66,20 +99,28 @@ export async function updateTemplate(
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.description !== undefined && { description: input.description }),
-      ...(input.durationMinutes !== undefined && {
-        durationMinutes: input.durationMinutes,
-      }),
-      ...(input.minParticipants !== undefined && {
-        minParticipants: input.minParticipants,
-      }),
-      ...(input.maxParticipants !== undefined && {
-        maxParticipants: input.maxParticipants,
-      }),
-      ...(input.defaultPrice !== undefined && {
-        defaultPrice: input.defaultPrice,
-      }),
+      ...(input.durationMinutes !== undefined && { durationMinutes: input.durationMinutes }),
+      ...(input.minParticipants !== undefined && { minParticipants: input.minParticipants }),
+      ...(input.maxParticipants !== undefined && { maxParticipants: input.maxParticipants }),
+      ...(input.defaultPrice !== undefined && { defaultPrice: input.defaultPrice }),
       ...(input.tags !== undefined && { tags: input.tags }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.workshopType !== undefined && { workshopType: input.workshopType }),
+      ...(input.recurrenceFrequency !== undefined && { recurrenceFrequency: input.recurrenceFrequency }),
+      ...(input.recurrenceDayOfWeek !== undefined && { recurrenceDayOfWeek: input.recurrenceDayOfWeek }),
+      ...(input.seasonStartMonth !== undefined && { seasonStartMonth: input.seasonStartMonth }),
+      ...(input.seasonEndMonth !== undefined && { seasonEndMonth: input.seasonEndMonth }),
+      ...(input.seasonReminderDays !== undefined && { seasonReminderDays: input.seasonReminderDays }),
+      ...(input.seasonPublishLeadDays !== undefined && { seasonPublishLeadDays: input.seasonPublishLeadDays }),
+      ...(input.seasonPrepLeadDays !== undefined && { seasonPrepLeadDays: input.seasonPrepLeadDays }),
+      ...(input.seasonOpenRegistrationDays !== undefined && { seasonOpenRegistrationDays: input.seasonOpenRegistrationDays }),
+      ...(input.seasonCloseRegistrationDays !== undefined && { seasonCloseRegistrationDays: input.seasonCloseRegistrationDays }),
+      ...(input.eventContactName !== undefined && { eventContactName: input.eventContactName }),
+      ...(input.eventContactPhone !== undefined && { eventContactPhone: input.eventContactPhone }),
+      ...(input.eventSpecialRequests !== undefined && { eventSpecialRequests: input.eventSpecialRequests }),
+      ...(input.ageRangeMin !== undefined && { ageRangeMin: input.ageRangeMin }),
+      ...(input.ageRangeMax !== undefined && { ageRangeMax: input.ageRangeMax }),
+      ...(input.requiresAdultSupervision !== undefined && { requiresAdultSupervision: input.requiresAdultSupervision }),
     },
   });
 }
