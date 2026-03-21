@@ -26,8 +26,8 @@ export type EventFormState = {
   message?: string;
 };
 
-// Re-export so existing imports of recomputeEventStatus from this module still work
-export { recomputeEventStatus } from "@/services/workshop-events";
+// Note: import recomputeEventStatus directly from "@/services/workshop-events"
+// Server action files ("use server") cannot re-export non-action functions.
 
 /** Thin wrapper that calls service with the app's prisma singleton */
 async function _recomputeEventStatus(eventId: string): Promise<void> {
