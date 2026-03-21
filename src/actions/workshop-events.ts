@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { WorkshopStatus } from "@/generated/prisma";
+import * as eventService from "@/services/workshop-events";
 
 const EventSchema = z.object({
   title: z.string().min(1, "כותרת היא שדה חובה"),
@@ -25,49 +26,12 @@ export type EventFormState = {
   message?: string;
 };
 
-/**
- * Compute auto status based on booking count vs capacity
- */
-export async function recomputeEventStatus(eventId: string): Promise<void> {
-  const event = await prisma.workshopEvent.findUnique({
-    where: { id: eventId },
-    include: {
-      bookings: {
-        where: { status: { in: ["confirmed", "pending"] } },
-      },
-    },
-  });
+// Re-export so existing imports of recomputeEventStatus from this module still work
+export { recomputeEventStatus } from "@/services/workshop-events";
 
-  if (!event) return;
-  // Don't auto-transition terminal/manual states
-  if (
-    event.status === "cancelled" ||
-    event.status === "postponed" ||
-    event.status === "completed" ||
-    event.status === "draft"
-  )
-    return;
-
-  const count = event.bookings.reduce((s, b) => s + b.participantCount, 0);
-
-  let newStatus: WorkshopStatus = event.status;
-
-  if (count >= event.maxParticipants) {
-    newStatus = "full";
-  } else if (count >= event.minParticipants) {
-    newStatus = "confirmed";
-  } else if (count > 0) {
-    newStatus = "pending_minimum";
-  } else {
-    newStatus = "open";
-  }
-
-  if (newStatus !== event.status) {
-    await prisma.workshopEvent.update({
-      where: { id: eventId },
-      data: { status: newStatus },
-    });
-  }
+/** Thin wrapper that calls service with the app's prisma singleton */
+async function _recomputeEventStatus(eventId: string): Promise<void> {
+  return eventService.recomputeEventStatus(prisma, eventId);
 }
 
 export async function createEvent(
@@ -94,15 +58,10 @@ export async function createEvent(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const event = await prisma.workshopEvent.create({
-    data: {
-      studioId,
-      createdById: userId,
-      ...parsed.data,
-      startsAt: new Date(parsed.data.startsAt),
-      endsAt: new Date(parsed.data.endsAt),
-      status: "draft",
-    },
+  const event = await eventService.createEvent(prisma, studioId, userId, {
+    ...parsed.data,
+    startsAt: new Date(parsed.data.startsAt),
+    endsAt: new Date(parsed.data.endsAt),
   });
 
   revalidatePath("/workshops");
@@ -133,17 +92,13 @@ export async function updateEvent(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  await prisma.workshopEvent.updateMany({
-    where: { id, studioId },
-    data: {
-      ...parsed.data,
-      startsAt: new Date(parsed.data.startsAt),
-      endsAt: new Date(parsed.data.endsAt),
-    },
+  await eventService.updateEvent(prisma, id, studioId, {
+    ...parsed.data,
+    startsAt: new Date(parsed.data.startsAt),
+    endsAt: new Date(parsed.data.endsAt),
   });
 
-  // Re-check status after update
-  await recomputeEventStatus(id);
+  await _recomputeEventStatus(id);
 
   revalidatePath(`/workshops/${id}`);
   redirect(`/workshops/${id}`);
@@ -154,17 +109,14 @@ export async function updateEventStatus(
   status: WorkshopStatus
 ): Promise<void> {
   const { studioId } = await getStudioIdAndUser();
-  await prisma.workshopEvent.updateMany({
-    where: { id, studioId },
-    data: { status },
-  });
+  await eventService.updateEventStatus(prisma, id, studioId, status);
   revalidatePath(`/workshops/${id}`);
   revalidatePath("/workshops");
 }
 
 export async function deleteEvent(id: string): Promise<void> {
   const { studioId } = await getStudioIdAndUser();
-  await prisma.workshopEvent.deleteMany({ where: { id, studioId } });
+  await eventService.deleteEvent(prisma, id, studioId);
   revalidatePath("/workshops");
   redirect("/workshops");
 }

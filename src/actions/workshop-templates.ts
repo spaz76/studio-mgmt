@@ -5,6 +5,7 @@ import { getStudioId } from "@/lib/studio";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import * as templateService from "@/services/workshop-templates";
 
 const TemplateSchema = z.object({
   name: z.string().min(1, "שם הוא שדה חובה"),
@@ -21,6 +22,15 @@ export type TemplateFormState = {
   errors?: Record<string, string[]>;
   message?: string;
 };
+
+function parseTags(raw: string | undefined): string[] {
+  return raw
+    ? raw
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+}
 
 export async function createTemplate(
   _prev: TemplateFormState,
@@ -45,15 +55,9 @@ export async function createTemplate(
   }
 
   const { tags, ...rest } = parsed.data;
-  const tagArray = tags
-    ? tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean)
-    : [];
-
-  await prisma.workshopTemplate.create({
-    data: { studioId, ...rest, tags: tagArray },
+  await templateService.createTemplate(prisma, studioId, {
+    ...rest,
+    tags: parseTags(tags),
   });
 
   revalidatePath("/workshops/templates");
@@ -84,16 +88,9 @@ export async function updateTemplate(
   }
 
   const { tags, ...rest } = parsed.data;
-  const tagArray = tags
-    ? tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean)
-    : [];
-
-  await prisma.workshopTemplate.updateMany({
-    where: { id, studioId },
-    data: { ...rest, tags: tagArray },
+  await templateService.updateTemplate(prisma, id, studioId, {
+    ...rest,
+    tags: parseTags(tags),
   });
 
   revalidatePath("/workshops/templates");
@@ -102,6 +99,6 @@ export async function updateTemplate(
 
 export async function deleteTemplate(id: string): Promise<void> {
   const studioId = await getStudioId();
-  await prisma.workshopTemplate.deleteMany({ where: { id, studioId } });
+  await templateService.deleteTemplate(prisma, id, studioId);
   revalidatePath("/workshops/templates");
 }

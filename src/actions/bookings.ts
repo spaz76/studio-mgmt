@@ -5,8 +5,8 @@ import { getStudioId } from "@/lib/studio";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { recomputeEventStatus } from "./workshop-events";
 import type { BookingStatus, PaymentStatus } from "@/generated/prisma";
+import * as bookingService from "@/services/bookings";
 
 const BookingSchema = z.object({
   customerId: z.string().min(1, "לקוח הוא שדה חובה"),
@@ -26,21 +26,6 @@ export async function createBooking(
 ): Promise<BookingFormState> {
   const studioId = await getStudioId();
 
-  // Check capacity
-  const event = await prisma.workshopEvent.findFirst({
-    where: { id: eventId, studioId },
-    include: {
-      bookings: { where: { status: { in: ["confirmed", "pending"] } } },
-    },
-  });
-
-  if (!event) return { message: "אירוע לא נמצא" };
-
-  const currentCount = event.bookings.reduce(
-    (s, b) => s + b.participantCount,
-    0
-  );
-
   const raw = {
     customerId: formData.get("customerId"),
     participantCount: formData.get("participantCount"),
@@ -52,33 +37,16 @@ export async function createBooking(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  const newTotal = currentCount + parsed.data.participantCount;
-  if (newTotal > event.maxParticipants) {
-    return {
-      message: `אין מספיק מקומות. נותרו ${event.maxParticipants - currentCount} מקומות`,
-    };
+  const result = await bookingService.createBooking(
+    prisma,
+    studioId,
+    eventId,
+    parsed.data
+  );
+
+  if (!result.ok) {
+    return { message: result.message };
   }
-
-  const booking = await prisma.booking.create({
-    data: {
-      studioId,
-      workshopEventId: eventId,
-      ...parsed.data,
-      status: "confirmed",
-    },
-  });
-
-  // Create initial pending payment record
-  await prisma.payment.create({
-    data: {
-      studioId,
-      bookingId: booking.id,
-      amount: Number(event.price) * parsed.data.participantCount,
-      status: "pending",
-    },
-  });
-
-  await recomputeEventStatus(eventId);
 
   revalidatePath(`/workshops/${eventId}`);
   redirect(`/workshops/${eventId}`);
@@ -90,11 +58,13 @@ export async function updateBookingStatus(
   eventId: string
 ): Promise<void> {
   const studioId = await getStudioId();
-  await prisma.booking.updateMany({
-    where: { id: bookingId, studioId },
-    data: { status },
-  });
-  await recomputeEventStatus(eventId);
+  await bookingService.updateBookingStatus(
+    prisma,
+    bookingId,
+    studioId,
+    status,
+    eventId
+  );
   revalidatePath(`/workshops/${eventId}`);
 }
 
@@ -103,8 +73,7 @@ export async function deleteBooking(
   eventId: string
 ): Promise<void> {
   const studioId = await getStudioId();
-  await prisma.booking.deleteMany({ where: { id: bookingId, studioId } });
-  await recomputeEventStatus(eventId);
+  await bookingService.deleteBooking(prisma, bookingId, studioId, eventId);
   revalidatePath(`/workshops/${eventId}`);
   redirect(`/workshops/${eventId}`);
 }
@@ -115,13 +84,7 @@ export async function updatePaymentStatus(
   eventId: string
 ): Promise<void> {
   const studioId = await getStudioId();
-  await prisma.payment.updateMany({
-    where: { id: paymentId, studioId },
-    data: {
-      status,
-      paidAt: status === "paid" ? new Date() : null,
-    },
-  });
+  await bookingService.updatePaymentStatus(prisma, paymentId, studioId, status);
   revalidatePath(`/workshops/${eventId}`);
 }
 
@@ -131,7 +94,5 @@ export async function createCustomer(
   email?: string,
   phone?: string
 ) {
-  return prisma.customer.create({
-    data: { studioId, name, email, phone },
-  });
+  return bookingService.createCustomer(prisma, studioId, name, email, phone);
 }
