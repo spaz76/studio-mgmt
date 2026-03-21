@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma";
 import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
@@ -12,18 +13,17 @@ function createPrismaClient() {
       ? ["query", "error", "warn"]
       : ["error"];
 
-  // Use plain Prisma (no adapter) for local Postgres / CI;
-  // Neon serverless adapter for production / Neon connections
+  // Neon serverless adapter for Neon connections;
+  // Standard pg adapter for local Postgres / CI
   const useNeon =
     connectionString.includes("neon.tech") ||
     process.env.USE_NEON_ADAPTER === "true";
 
-  if (useNeon) {
-    const adapter = new PrismaNeon({ connectionString });
-    return new PrismaClient({ adapter, log });
-  }
+  const adapter = useNeon
+    ? new PrismaNeon({ connectionString })
+    : new PrismaPg({ connectionString });
 
-  return new PrismaClient({ datasourceUrl: connectionString, log });
+  return new PrismaClient({ adapter, log });
 }
 
 const globalForPrisma = globalThis as unknown as {

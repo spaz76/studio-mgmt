@@ -6,6 +6,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma";
 import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
 const connectionString = process.env["DATABASE_URL"]!;
@@ -13,9 +14,11 @@ const useNeon =
   connectionString.includes("neon.tech") ||
   process.env.USE_NEON_ADAPTER === "true";
 
-const prisma = useNeon
-  ? new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
-  : new PrismaClient({ datasourceUrl: connectionString });
+const adapter = useNeon
+  ? new PrismaNeon({ connectionString })
+  : new PrismaPg({ connectionString });
+
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const email = process.env.SEED_OWNER_EMAIL ?? "owner@studio.local";
