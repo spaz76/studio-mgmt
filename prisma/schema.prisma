@@ -95,6 +95,7 @@ enum StockLogAction {
 enum WorkshopType {
   REGULAR
   RECURRING
+  CLASS
   SEASONAL
   EVENT
   PARENT_CHILD
@@ -105,6 +106,18 @@ enum RecurrenceFrequency {
   WEEKLY
   BIWEEKLY
   MONTHLY
+}
+
+enum EventPricingModel {
+  FLAT
+  PER_PARTICIPANT
+  PACKAGE
+}
+
+enum AttendanceStatus {
+  ATTENDED
+  ABSENT
+  MADE_UP
 }
 
 // ─────────────────────────────────────────────
@@ -126,6 +139,8 @@ model Studio {
   maxUsers             Int      @default(5)
   maxWorkshopsPerMonth Int      @default(20)
   maxProducts          Int      @default(100)
+  vatRate              Decimal  @default(18.0) @db.Decimal(5, 2)
+  pricesIncludeVat     Boolean  @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -281,10 +296,14 @@ model WorkshopTemplate {
   seasonOpenRegistrationDays   Int?
   seasonCloseRegistrationDays  Int?
 
+  // Advanced: Class (CLASS)
+  totalSessions Int?
+
   // Advanced: Event (EVENT)
   eventContactName     String?
   eventContactPhone    String?
   eventSpecialRequests String?
+  eventPricingModel    EventPricingModel?
 
   // Advanced: Parent-Child (PARENT_CHILD)
   ageRangeMin              Int?
@@ -294,8 +313,9 @@ model WorkshopTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  studio         Studio          @relation(fields: [studioId], references: [id], onDelete: Cascade)
-  workshopEvents WorkshopEvent[]
+  studio           Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  workshopEvents   WorkshopEvent[]
+  packageLineItems PackageLineItem[]
 
   @@index([studioId])
 }
@@ -323,11 +343,14 @@ model WorkshopEvent {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  studio    Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
-  template  WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  createdBy User?             @relation("WorkshopCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  bookings  Booking[]
-  reminders Reminder[]
+  studio            Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  template          WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy         User?             @relation("WorkshopCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  bookings          Booking[]
+  reminders         Reminder[]
+  packageLineItems  PackageLineItem[]
+  attendances       Attendance[]      @relation("AttendanceForEvent")
+  madeUpAttendances Attendance[]      @relation("AttendanceMadeUp")
 
   @@index([studioId])
   @@index([studioId, status])
@@ -556,4 +579,47 @@ model Reminder {
   @@index([studioId])
   @@index([studioId, status])
   @@index([studioId, dueAt])
+}
+
+// ─────────────────────────────────────────────
+// PACKAGE LINE ITEMS
+// ─────────────────────────────────────────────
+
+model PackageLineItem {
+  id              String   @id @default(cuid())
+  templateId      String?
+  workshopEventId String?
+  description     String
+  amount          Decimal  @db.Decimal(10, 2)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  template      WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  workshopEvent WorkshopEvent?    @relation(fields: [workshopEventId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([workshopEventId])
+}
+
+// ─────────────────────────────────────────────
+// ATTENDANCE (schema only — UI in Phase B)
+// ─────────────────────────────────────────────
+
+model Attendance {
+  id              String           @id @default(cuid())
+  workshopEventId String
+  customerId      String
+  status          AttendanceStatus
+  madeUpEventId   String?
+  date            DateTime
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workshopEvent WorkshopEvent  @relation("AttendanceForEvent", fields: [workshopEventId], references: [id], onDelete: Cascade)
+  madeUpEvent   WorkshopEvent? @relation("AttendanceMadeUp", fields: [madeUpEventId], references: [id], onDelete: SetNull)
+
+  @@index([workshopEventId])
+  @@index([customerId])
 }

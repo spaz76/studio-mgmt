@@ -7,8 +7,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import * as templateService from "@/services/workshop-templates";
 
-const WorkshopTypeValues = ["REGULAR", "RECURRING", "SEASONAL", "EVENT", "PARENT_CHILD"] as const;
+const WorkshopTypeValues = ["REGULAR", "RECURRING", "CLASS", "SEASONAL", "EVENT", "PARENT_CHILD"] as const;
 const RecurrenceFrequencyValues = ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"] as const;
+const EventPricingModelValues = ["FLAT", "PER_PARTICIPANT", "PACKAGE"] as const;
 
 const TemplateSchema = z.object({
   name: z.string().min(1, "שם הוא שדה חובה"),
@@ -23,6 +24,7 @@ const TemplateSchema = z.object({
   workshopType: z.enum(WorkshopTypeValues).default("REGULAR"),
   recurrenceFrequency: z.enum(RecurrenceFrequencyValues).optional().nullable(),
   recurrenceDayOfWeek: z.coerce.number().int().min(0).max(6).optional().nullable(),
+  totalSessions: z.coerce.number().int().min(1).optional().nullable(),
   seasonStartMonth: z.coerce.number().int().min(1).max(12).optional().nullable(),
   seasonEndMonth: z.coerce.number().int().min(1).max(12).optional().nullable(),
   seasonReminderDays: z.string().optional(), // comma-separated ints
@@ -33,6 +35,7 @@ const TemplateSchema = z.object({
   eventContactName: z.string().optional().nullable(),
   eventContactPhone: z.string().optional().nullable(),
   eventSpecialRequests: z.string().optional().nullable(),
+  eventPricingModel: z.enum(EventPricingModelValues).optional().nullable(),
   ageRangeMin: z.coerce.number().int().min(0).optional().nullable(),
   ageRangeMax: z.coerce.number().int().min(0).optional().nullable(),
   requiresAdultSupervision: z.boolean().default(true),
@@ -61,12 +64,25 @@ function parseIntArray(raw: string | undefined): number[] {
     : [];
 }
 
+function parseLineItems(formData: FormData) {
+  const descriptions = formData.getAll("lineItemDescription") as string[];
+  const amounts = formData.getAll("lineItemAmount") as string[];
+  const items = descriptions
+    .map((desc, i) => ({
+      description: desc.trim(),
+      amount: parseFloat(amounts[i] ?? "0"),
+    }))
+    .filter((item) => item.description && !isNaN(item.amount) && item.amount >= 0);
+  return items;
+}
+
 function extractAdvancedFields(formData: FormData) {
-  const workshopType = formData.get("workshopType") as string || "REGULAR";
+  const workshopType = (formData.get("workshopType") as string) || "REGULAR";
   return {
     workshopType,
     recurrenceFrequency: formData.get("recurrenceFrequency") || undefined,
     recurrenceDayOfWeek: formData.get("recurrenceDayOfWeek") || undefined,
+    totalSessions: formData.get("totalSessions") || undefined,
     seasonStartMonth: formData.get("seasonStartMonth") || undefined,
     seasonEndMonth: formData.get("seasonEndMonth") || undefined,
     seasonReminderDays: formData.get("seasonReminderDays") as string | undefined,
@@ -77,6 +93,7 @@ function extractAdvancedFields(formData: FormData) {
     eventContactName: formData.get("eventContactName") || undefined,
     eventContactPhone: formData.get("eventContactPhone") || undefined,
     eventSpecialRequests: formData.get("eventSpecialRequests") || undefined,
+    eventPricingModel: formData.get("eventPricingModel") || undefined,
     ageRangeMin: formData.get("ageRangeMin") || undefined,
     ageRangeMax: formData.get("ageRangeMax") || undefined,
     requiresAdultSupervision: formData.get("requiresAdultSupervision") !== "false",
@@ -107,10 +124,13 @@ export async function createTemplate(
   }
 
   const { tags, seasonReminderDays, ...rest } = parsed.data;
+  const packageLineItems = parseLineItems(formData);
+
   await templateService.createTemplate(prisma, studioId, {
     ...rest,
     tags: parseTags(tags),
     seasonReminderDays: parseIntArray(seasonReminderDays ?? undefined),
+    packageLineItems,
   });
 
   revalidatePath("/workshops/templates");
@@ -142,10 +162,13 @@ export async function updateTemplate(
   }
 
   const { tags, seasonReminderDays, ...rest } = parsed.data;
+  const packageLineItems = parseLineItems(formData);
+
   await templateService.updateTemplate(prisma, id, studioId, {
     ...rest,
     tags: parseTags(tags),
     seasonReminderDays: parseIntArray(seasonReminderDays ?? undefined),
+    packageLineItems,
   });
 
   revalidatePath("/workshops/templates");
