@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemplateFormState } from "@/actions/workshop-templates";
@@ -60,10 +61,9 @@ export function TemplateForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="durationMinutes">משך (דקות)</Label>
-          <Input
+          <NumberInput
             id="durationMinutes"
             name="durationMinutes"
-            type="number"
             min={15}
             max={480}
             defaultValue={initialData?.durationMinutes ?? 120}
@@ -71,10 +71,9 @@ export function TemplateForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="defaultPrice">מחיר ברירת מחדל (₪)</Label>
-          <Input
+          <NumberInput
             id="defaultPrice"
             name="defaultPrice"
-            type="number"
             min={0}
             step={0.01}
             defaultValue={
@@ -87,20 +86,18 @@ export function TemplateForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="minParticipants">מינימום משתתפים</Label>
-          <Input
+          <NumberInput
             id="minParticipants"
             name="minParticipants"
-            type="number"
             min={1}
             defaultValue={initialData?.minParticipants ?? 1}
           />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="maxParticipants">מקסימום משתתפים</Label>
-          <Input
+          <NumberInput
             id="maxParticipants"
             name="maxParticipants"
-            type="number"
             min={1}
             defaultValue={initialData?.maxParticipants ?? 12}
           />

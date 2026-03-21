@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { EventFormState } from "@/actions/workshop-events";
@@ -131,10 +132,9 @@ export function EventForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="minParticipants">מינימום משתתפים</Label>
-          <Input
+          <NumberInput
             id="minParticipants"
             name="minParticipants"
-            type="number"
             min={1}
             defaultValue={
               initialData?.minParticipants ?? template?.minParticipants ?? 1
@@ -143,10 +143,9 @@ export function EventForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="maxParticipants">מקסימום משתתפים</Label>
-          <Input
+          <NumberInput
             id="maxParticipants"
             name="maxParticipants"
-            type="number"
             min={1}
             defaultValue={
               initialData?.maxParticipants ?? template?.maxParticipants ?? 12
@@ -158,10 +157,9 @@ export function EventForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="price">מחיר למשתתף (₪)</Label>
-          <Input
+          <NumberInput
             id="price"
             name="price"
-            type="number"
             min={0}
             step={0.01}
             defaultValue={

@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { BookingFormState } from "@/actions/bookings";
@@ -172,10 +173,9 @@ export function BookingForm({
       {/* Participant Count */}
       <div className="space-y-1.5">
         <Label htmlFor="participantCount">מספר משתתפים</Label>
-        <Input
+        <NumberInput
           id="participantCount"
           name="participantCount"
-          type="number"
           min={1}
           max={spotsLeft}
           value={participantCount}
