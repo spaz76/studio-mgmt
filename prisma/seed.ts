@@ -8,10 +8,14 @@ import { PrismaClient } from "../src/generated/prisma";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
 
-const adapter = new PrismaNeon({
-  connectionString: process.env["DATABASE_URL"]!,
-});
-const prisma = new PrismaClient({ adapter });
+const connectionString = process.env["DATABASE_URL"]!;
+const useNeon =
+  connectionString.includes("neon.tech") ||
+  process.env.USE_NEON_ADAPTER === "true";
+
+const prisma = useNeon
+  ? new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
+  : new PrismaClient();
 
 async function main() {
   const email = process.env.SEED_OWNER_EMAIL ?? "owner@studio.local";
