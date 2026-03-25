@@ -18,7 +18,10 @@ export default async function EditTemplatePage({
 
   const template = await prisma.workshopTemplate.findFirst({
     where: { id, studioId },
-    include: { packageLineItems: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      packageLineItems: { orderBy: { sortOrder: "asc" } },
+      images: { orderBy: { sortOrder: "asc" } },
+    },
   });
 
   if (!template) notFound();
@@ -43,6 +46,7 @@ export default async function EditTemplatePage({
             action={boundAction}
             initialData={template}
             submitLabel="שמור שינויים"
+            isUpdate={true}
           />
         </CardContent>
       </Card>

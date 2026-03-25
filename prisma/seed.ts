@@ -113,19 +113,147 @@ async function main() {
     update: {},
   });
 
-  // ── Workshop Template ────────────────────────────────────────────────────
+  // ── Workshop Templates (one per type) ────────────────────────────────────
   const template = await prisma.workshopTemplate.upsert({
     where: { id: "seed-template-1" },
     create: {
       id: "seed-template-1",
       studioId: studio.id,
-      name: "סדנת חרס למתחילים",
-      description: "סדנה מבואית לאמנות הקדרות — ניסוח ועיצוב בחומר",
+      name: "סדנת קרמיקה למתחילים",
+      workshopType: "REGULAR",
+      description: "סדנה מבואית לאמנות הקרמיקה — ניסוח ועיצוב בחומר. מתאים לכל גיל, ללא ניסיון קודם.",
+      marketingText: "🏺 בואו לחוות את קסם הקרמיקה! סדנה ראשונה? הגעתם למקום הנכון. בואו ללכלך ידיים, לצחוק ולצאת עם יצירה משלכם.",
+      internalNotes: "לדאוג לחרס לבן — 2 ק\"ג למשתתף. לוודא שהכבשן פנוי שבוע לאחר הסדנה.",
+      registrationUrl: "https://atnachta.co.il/register",
       durationMinutes: 120,
       minParticipants: 4,
       maxParticipants: 10,
       defaultPrice: 180,
-      tags: ["מתחילים", "חרס", "קדרות"],
+      tags: ["מתחילים", "קרמיקה", "חד-פעמי"],
+      usageCount: 12,
+    },
+    update: {},
+  });
+
+  await prisma.workshopTemplate.upsert({
+    where: { id: "seed-template-2" },
+    create: {
+      id: "seed-template-2",
+      studioId: studio.id,
+      name: "חוג קרמיקה שבועי",
+      workshopType: "RECURRING",
+      description: "חוג שבועי קבוע לעמקת הידע ופיתוח טכניקות קרמיקה. קבוצה קטנה ואינטימית.",
+      marketingText: "🔄 מחפשים פעילות שבועית מרגיעה? הצטרפו לחוג הקרמיקה השבועי שלנו! קבוצה קטנה, אווירה נהדרת, קרמיקה מרתקת.",
+      internalNotes: "לוודא שיש חומרים ל-8 שבועות קדימה. לתאם עם משתתפים קבועים בנוגע לחגים.",
+      registrationUrl: "https://atnachta.co.il/register/weekly",
+      durationMinutes: 90,
+      minParticipants: 3,
+      maxParticipants: 8,
+      defaultPrice: 220,
+      recurrenceFrequency: "WEEKLY",
+      recurrenceDayOfWeek: 3, // Wednesday
+      recurrenceStartTime: "18:00",
+      recurrenceEndTime: "19:30",
+      tags: ["חוג", "שבועי", "מתמשך"],
+      usageCount: 5,
+    },
+    update: {},
+  });
+
+  await prisma.workshopTemplate.upsert({
+    where: { id: "seed-template-3" },
+    create: {
+      id: "seed-template-3",
+      studioId: studio.id,
+      name: "קורס קרמיקה מתקדמים",
+      workshopType: "CLASS",
+      description: "קורס מובנה ל-12 מפגשים המיועד למי שיש לו ניסיון בסיסי ורוצה להתעמק בטכניקות מתקדמות.",
+      marketingText: "📋 מוכנים לרמה הבאה? קורס הקרמיקה למתקדמים כולל 12 מפגשים מובנים — מסביבה מחלצת ועד גלייז מקצועי. מספר מקומות מוגבל!",
+      internalNotes: "לצלם עבודות בתחילת ובסוף הקורס לתיק עבודות. להכין חומרי לימוד לכל מפגש.",
+      registrationUrl: "https://atnachta.co.il/register/advanced",
+      durationMinutes: 120,
+      minParticipants: 4,
+      maxParticipants: 8,
+      defaultPrice: 350,
+      totalSessions: 12,
+      tags: ["מתקדמים", "קורס", "12 מפגשים"],
+      usageCount: 3,
+    },
+    update: {},
+  });
+
+  await prisma.workshopTemplate.upsert({
+    where: { id: "seed-template-4" },
+    create: {
+      id: "seed-template-4",
+      studioId: studio.id,
+      name: "סדנת צלחת פסח",
+      workshopType: "SEASONAL",
+      description: "סדנה עונתית ליצירת צלחת סדר מקרמיקה. מתנה מושלמת לפסח.",
+      marketingText: "🌸 פסח מגיע — צרו צלחת סדר קרמיקה ביד שלכם! סדנה חגיגית ומשמחת לכל המשפחה. גם כמתנה — אין כמו זה.",
+      internalNotes: "לפרסם 8 שבועות לפני הפסח. להזמין גלייז צבעוני מיוחד לפסח. לכתוב נוסחי הגדה בחרס — כן אפשרי!",
+      registrationUrl: "https://atnachta.co.il/register/passover",
+      durationMinutes: 150,
+      minParticipants: 4,
+      maxParticipants: 12,
+      defaultPrice: 220,
+      seasonStartMonth: 3,
+      seasonEndMonth: 4,
+      seasonPublishLeadDays: 56, // 8 weeks
+      seasonPrepLeadDays: 28,    // 4 weeks
+      seasonOpenRegistrationDays: 42,
+      seasonCloseRegistrationDays: 7,
+      seasonReminderDays: [56, 28, 14],
+      tags: ["פסח", "עונתי", "חג"],
+      usageCount: 8,
+    },
+    update: {},
+  });
+
+  await prisma.workshopTemplate.upsert({
+    where: { id: "seed-template-5" },
+    create: {
+      id: "seed-template-5",
+      studioId: studio.id,
+      name: "יום הולדת בסטודיו",
+      workshopType: "EVENT",
+      description: "אירוע יום הולדת פרטי בסטודיו. כולל הנחיית סדנת קרמיקה, ציוד וכיבוד קל.",
+      marketingText: "🎉 יום הולדת שלא תשכחו! הזמינו חוויה אישית ומיוחדת — סדנת קרמיקה פרטית לחברים ולמשפחה. כל אחד יוצא עם יצירה ביד.",
+      internalNotes: "לשלוח תפריט מתנות ולאשר מספר משתתפים שבוע מראש. לבדוק אם יש אלרגיות למשתתפים.",
+      registrationUrl: "https://atnachta.co.il/events/birthday",
+      durationMinutes: 180,
+      minParticipants: 8,
+      maxParticipants: 20,
+      defaultPrice: 2500,
+      eventContactName: "",
+      eventContactPhone: "",
+      eventPricingModel: "FLAT",
+      tags: ["יום הולדת", "אירוע פרטי"],
+      usageCount: 15,
+    },
+    update: {},
+  });
+
+  await prisma.workshopTemplate.upsert({
+    where: { id: "seed-template-6" },
+    create: {
+      id: "seed-template-6",
+      studioId: studio.id,
+      name: "סדנת הורה-ילד",
+      workshopType: "PARENT_CHILD",
+      description: "סדנת קרמיקה משותפת להורה וילד. יוצרים יחד, זוכרים לנצח.",
+      marketingText: "👶 רגע איכות עם הילד שלך! סדנת קרמיקה לזוגות הורה-ילד — מעל גיל 5. תוצאה מוחשית ביד, ובלב.",
+      internalNotes: "לוודא שהשולחנות בגובה מתאים לילדים. לדאוג לסינרים קטנים. להכין עיצובים פשוטים מותאמים לילדים.",
+      registrationUrl: "https://atnachta.co.il/register/parent-child",
+      durationMinutes: 90,
+      minParticipants: 4,
+      maxParticipants: 10,
+      defaultPrice: 150,
+      ageRangeMin: 5,
+      ageRangeMax: 12,
+      requiresAdultSupervision: true,
+      tags: ["הורה-ילד", "משפחות", "ילדים"],
+      usageCount: 6,
     },
     update: {},
   });
@@ -437,12 +565,91 @@ async function main() {
     update: {},
   });
 
+  // ── Categories (hierarchical) ─────────────────────────────────────────────
+  // Ceramics top-level
+  const catCeramics = await prisma.category.upsert({
+    where: { id: "seed-cat-ceramics" },
+    create: { id: "seed-cat-ceramics", studioId: studio.id, name: "קרמיקה" },
+    update: {},
+  });
+  const catClay = await prisma.category.upsert({
+    where: { id: "seed-cat-clay" },
+    create: { id: "seed-cat-clay", studioId: studio.id, name: "חימר", parentId: catCeramics.id },
+    update: {},
+  });
+  const catGlazes = await prisma.category.upsert({
+    where: { id: "seed-cat-glazes" },
+    create: { id: "seed-cat-glazes", studioId: studio.id, name: "גלזורות", parentId: catCeramics.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-glazes-powder" },
+    create: { id: "seed-cat-glazes-powder", studioId: studio.id, name: "אבקות", parentId: catGlazes.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-glazes-liquid" },
+    create: { id: "seed-cat-glazes-liquid", studioId: studio.id, name: "נוזלים", parentId: catGlazes.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-wonder-colors" },
+    create: { id: "seed-cat-wonder-colors", studioId: studio.id, name: "צבעי פלא", parentId: catCeramics.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-engobes" },
+    create: { id: "seed-cat-engobes", studioId: studio.id, name: "אנגובים", parentId: catCeramics.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-bisque" },
+    create: { id: "seed-cat-bisque", studioId: studio.id, name: "ביסקים", parentId: catCeramics.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-pigments" },
+    create: { id: "seed-cat-pigments", studioId: studio.id, name: "צובענים", parentId: catCeramics.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-sculpture-tools" },
+    create: { id: "seed-cat-sculpture-tools", studioId: studio.id, name: "ציוד לפיסול", parentId: catCeramics.id },
+    update: {},
+  });
+  // Painting top-level
+  const catPainting = await prisma.category.upsert({
+    where: { id: "seed-cat-painting" },
+    create: { id: "seed-cat-painting", studioId: studio.id, name: "ציור" },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-acrylics" },
+    create: { id: "seed-cat-acrylics", studioId: studio.id, name: "צבעי אקריל", parentId: catPainting.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-canvases" },
+    create: { id: "seed-cat-canvases", studioId: studio.id, name: "קנבאסים", parentId: catPainting.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-brushes" },
+    create: { id: "seed-cat-brushes", studioId: studio.id, name: "מכחולים", parentId: catPainting.id },
+    update: {},
+  });
+  await prisma.category.upsert({
+    where: { id: "seed-cat-pointers" },
+    create: { id: "seed-cat-pointers", studioId: studio.id, name: "מנקדים", parentId: catPainting.id },
+    update: {},
+  });
+
   // ── Summary ──────────────────────────────────────────────────────────────
   console.log(`✓ Studio:      ${studio.name} (${studio.slug})`);
   console.log(`✓ Owner:       ${owner.email}  /  password: ${password}`);
   console.log(`✓ Operator:    ${operatorEmail}  /  password: operator123`);
   console.log(`✓ Customers:   ${customer1.name}, ${customer2.name}`);
-  console.log(`✓ Template:    ${template.name}`);
+  console.log(`✓ Templates:   6 (REGULAR, RECURRING, CLASS, SEASONAL, EVENT, PARENT_CHILD)`);
   console.log(`✓ Events:      ${event1.title}, ${event2.title}`);
   console.log(`✓ Bookings:    2`);
   console.log(`✓ Payments:    2`);

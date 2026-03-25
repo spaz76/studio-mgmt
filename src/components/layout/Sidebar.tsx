@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   CalendarDays,
+  Calendar,
   Users,
   Package,
   FlaskConical,
@@ -13,6 +14,10 @@ import {
   BarChart2,
   Settings,
   X,
+  CreditCard,
+  Flame,
+  Palette,
+  Truck,
 } from "lucide-react";
 
 const navItems = [
@@ -25,12 +30,23 @@ const navItems = [
       { href: "/workshops/templates", label: "תבניות" },
     ],
   },
+  { href: "/calendar", label: "לוח שנה", icon: Calendar },
+  { href: "/payments", label: "תשלומים", icon: CreditCard },
   { href: "/customers", label: "לקוחות", icon: Users },
   { href: "/products", label: "מוצרים", icon: Package },
-  { href: "/materials", label: "חומרים", icon: FlaskConical },
+  { href: "/kilns", label: "מעקב תנור", icon: Flame },
+  { href: "/materials", label: "חומרים", icon: Palette },
+  { href: "/suppliers", label: "ספקים", icon: Truck },
   { href: "/reminders", label: "תזכורות", icon: Bell },
   { href: "/reports", label: "דוחות", icon: BarChart2 },
-  { href: "/settings", label: "הגדרות", icon: Settings },
+  {
+    href: "/settings",
+    label: "הגדרות",
+    icon: Settings,
+    children: [
+      { href: "/settings/messages", label: "תבניות הודעות" },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -48,11 +64,17 @@ export function Sidebar({ onClose, className }: SidebarProps) {
         className
       )}
     >
+      {/* Accent bar */}
+      <div className="h-1 w-full bg-[var(--studio-primary,var(--sidebar-primary))]" />
+
       {/* Header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <span className="text-xl font-bold text-sidebar-primary">
-            Atnachta
+          <span
+            className="text-xl font-bold"
+            style={{ color: "var(--studio-primary, var(--sidebar-primary))" }}
+          >
+            Studio-Labs
           </span>
           <span className="text-xs text-sidebar-foreground/60">Studio</span>
         </Link>
@@ -69,7 +91,7 @@ export function Sidebar({ onClose, className }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
-        <ul className="space-y-1">
+        <ul className="space-y-0.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -80,18 +102,26 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                 <Link
                   href={item.href}
                   onClick={onClose}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  style={
                     isActive
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? {
+                          borderRightColor: "var(--studio-primary)",
+                          color: "var(--studio-primary)",
+                          backgroundColor: "color-mix(in srgb, var(--studio-primary) 10%, transparent)",
+                        }
+                      : undefined
+                  }
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors border-r-[3px] border-transparent",
+                    !isActive &&
+                      "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" />
+                  <Icon className="h-5 w-5 shrink-0" strokeWidth={isActive ? 2.5 : 1.75} />
                   <span>{item.label}</span>
                 </Link>
                 {"children" in item && item.children && isActive && (
-                  <ul className="mt-1 mr-8 space-y-1">
+                  <ul className="mt-0.5 mr-10 space-y-0.5">
                     {item.children.map((child) => {
                       const isChildActive =
                         pathname === child.href ||
@@ -101,10 +131,15 @@ export function Sidebar({ onClose, className }: SidebarProps) {
                           <Link
                             href={child.href}
                             onClick={onClose}
+                            style={
+                              isChildActive
+                                ? { color: "var(--studio-primary)" }
+                                : undefined
+                            }
                             className={cn(
                               "flex items-center rounded-md px-3 py-1.5 text-sm transition-colors",
                               isChildActive
-                                ? "font-medium text-sidebar-primary"
+                                ? "font-medium"
                                 : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
                             )}
                           >

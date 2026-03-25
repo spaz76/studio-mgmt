@@ -2,28 +2,11 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getStudioId } from "@/lib/studio";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { Plus, CalendarDays, Users, MapPin, Layers } from "lucide-react";
-import { STATUS_LABELS, STATUS_VARIANTS } from "@/lib/workshop-status";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, CalendarDays, Layers } from "lucide-react";
+import { WorkshopsClient } from "./WorkshopsClient";
 
 export const metadata = { title: "סדנאות" };
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("he-IL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
 
 export default async function WorkshopsPage() {
   const studioId = await getStudioId();
@@ -37,7 +20,6 @@ export default async function WorkshopsPage() {
         where: { status: { in: ["confirmed", "pending"] } },
         select: { participantCount: true },
       },
-      _count: { select: { bookings: true } },
     },
   });
 
@@ -103,112 +85,8 @@ export default async function WorkshopsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-8">
-          {upcoming.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3">קרובות</h2>
-              <EventGrid events={upcoming} />
-            </section>
-          )}
-          {past.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3 text-muted-foreground">
-                עבר / מבוטל
-              </h2>
-              <EventGrid events={past} muted />
-            </section>
-          )}
-        </div>
+        <WorkshopsClient upcoming={upcoming} past={past} />
       )}
-    </div>
-  );
-}
-
-type EventWithRelations = {
-  id: string;
-  title: string;
-  startsAt: Date;
-  endsAt: Date;
-  status: import("@/generated/prisma").WorkshopStatus;
-  maxParticipants: number;
-  minParticipants: number;
-  price: { toString(): string } | string | number;
-  location: string | null;
-  template: { name: string } | null;
-  bookings: { participantCount: number }[];
-};
-
-function EventGrid({
-  events,
-  muted,
-}: {
-  events: EventWithRelations[];
-  muted?: boolean;
-}) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {events.map((e) => {
-        const booked = e.bookings.reduce((s, b) => s + b.participantCount, 0);
-        const spotsLeft = e.maxParticipants - booked;
-
-        return (
-          <Link key={e.id} href={`/workshops/${e.id}`}>
-            <Card
-              className={cn(
-                "hover:border-primary/50 hover:shadow-sm transition-all cursor-pointer h-full",
-                muted && "opacity-70"
-              )}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base leading-tight">
-                    {e.title}
-                  </CardTitle>
-                  <Badge
-                    variant={STATUS_VARIANTS[e.status]}
-                    className="text-xs shrink-0"
-                  >
-                    {STATUS_LABELS[e.status]}
-                  </Badge>
-                </div>
-                {e.template && (
-                  <p className="text-xs text-muted-foreground">
-                    {e.template.name}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="pt-0 space-y-1.5 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  <span>{formatDate(e.startsAt)}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" />
-                  <span>
-                    {booked}/{e.maxParticipants} משתתפים
-                    {spotsLeft > 0 && spotsLeft <= 3 && (
-                      <span className="text-orange-500 mr-1">
-                        ({spotsLeft} מקומות נותרו)
-                      </span>
-                    )}
-                  </span>
-                </div>
-                {e.location && (
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5" />
-                    <span className="truncate">{e.location}</span>
-                  </div>
-                )}
-                {Number(e.price) > 0 && (
-                  <div className="font-medium text-foreground">
-                    ₪{Number(e.price).toFixed(0)} למשתתף
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-        );
-      })}
     </div>
   );
 }

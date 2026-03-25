@@ -11,6 +11,13 @@ export interface PackageLineItemInput {
   amount: number;
 }
 
+export interface TemplateImageInput {
+  url: string;
+  alt?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+}
+
 export interface CreateTemplateInput {
   name: string;
   description?: string;
@@ -24,6 +31,8 @@ export interface CreateTemplateInput {
   workshopType?: WorkshopType;
   recurrenceFrequency?: RecurrenceFrequency | null;
   recurrenceDayOfWeek?: number | null;
+  recurrenceStartTime?: string | null;
+  recurrenceEndTime?: string | null;
   totalSessions?: number | null;
   seasonStartMonth?: number | null;
   seasonEndMonth?: number | null;
@@ -40,15 +49,23 @@ export interface CreateTemplateInput {
   ageRangeMax?: number | null;
   requiresAdultSupervision?: boolean;
   packageLineItems?: PackageLineItemInput[];
+  // Phase B
+  marketingText?: string | null;
+  internalNotes?: string | null;
+  registrationUrl?: string | null;
+  images?: TemplateImageInput[];
 }
 
 export type UpdateTemplateInput = Partial<CreateTemplateInput>;
 
 export async function listTemplates(prisma: PrismaClient, studioId: string) {
   return prisma.workshopTemplate.findMany({
-    where: { studioId },
-    orderBy: { updatedAt: "desc" },
-    include: { _count: { select: { workshopEvents: true } } },
+    where: { studioId, isArchived: false },
+    orderBy: [{ usageCount: "desc" }, { name: "asc" }],
+    include: {
+      _count: { select: { workshopEvents: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+    },
   });
 }
 
@@ -59,7 +76,10 @@ export async function getTemplate(
 ) {
   return prisma.workshopTemplate.findFirst({
     where: { id, studioId },
-    include: { packageLineItems: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      packageLineItems: { orderBy: { sortOrder: "asc" } },
+      images: { orderBy: { sortOrder: "asc" } },
+    },
   });
 }
 
@@ -82,6 +102,8 @@ export async function createTemplate(
       workshopType: input.workshopType ?? "REGULAR",
       recurrenceFrequency: input.recurrenceFrequency ?? null,
       recurrenceDayOfWeek: input.recurrenceDayOfWeek ?? null,
+      recurrenceStartTime: input.recurrenceStartTime ?? null,
+      recurrenceEndTime: input.recurrenceEndTime ?? null,
       totalSessions: input.totalSessions ?? null,
       seasonStartMonth: input.seasonStartMonth ?? null,
       seasonEndMonth: input.seasonEndMonth ?? null,
@@ -97,12 +119,25 @@ export async function createTemplate(
       ageRangeMin: input.ageRangeMin ?? null,
       ageRangeMax: input.ageRangeMax ?? null,
       requiresAdultSupervision: input.requiresAdultSupervision ?? true,
+      marketingText: input.marketingText ?? null,
+      internalNotes: input.internalNotes ?? null,
+      registrationUrl: input.registrationUrl ?? null,
       ...(input.packageLineItems && input.packageLineItems.length > 0 && {
         packageLineItems: {
           create: input.packageLineItems.map((item, idx) => ({
             description: item.description,
             amount: item.amount,
             sortOrder: idx,
+          })),
+        },
+      }),
+      ...(input.images && input.images.length > 0 && {
+        images: {
+          create: input.images.map((img, idx) => ({
+            url: img.url,
+            alt: img.alt,
+            isPrimary: img.isPrimary ?? idx === 0,
+            sortOrder: img.sortOrder ?? idx,
           })),
         },
       }),
@@ -131,6 +166,8 @@ export async function updateTemplate(
         ...(input.workshopType !== undefined && { workshopType: input.workshopType }),
         ...(input.recurrenceFrequency !== undefined && { recurrenceFrequency: input.recurrenceFrequency }),
         ...(input.recurrenceDayOfWeek !== undefined && { recurrenceDayOfWeek: input.recurrenceDayOfWeek }),
+        ...(input.recurrenceStartTime !== undefined && { recurrenceStartTime: input.recurrenceStartTime }),
+        ...(input.recurrenceEndTime !== undefined && { recurrenceEndTime: input.recurrenceEndTime }),
         ...(input.totalSessions !== undefined && { totalSessions: input.totalSessions }),
         ...(input.seasonStartMonth !== undefined && { seasonStartMonth: input.seasonStartMonth }),
         ...(input.seasonEndMonth !== undefined && { seasonEndMonth: input.seasonEndMonth }),
@@ -146,6 +183,9 @@ export async function updateTemplate(
         ...(input.ageRangeMin !== undefined && { ageRangeMin: input.ageRangeMin }),
         ...(input.ageRangeMax !== undefined && { ageRangeMax: input.ageRangeMax }),
         ...(input.requiresAdultSupervision !== undefined && { requiresAdultSupervision: input.requiresAdultSupervision }),
+        ...(input.marketingText !== undefined && { marketingText: input.marketingText }),
+        ...(input.internalNotes !== undefined && { internalNotes: input.internalNotes }),
+        ...(input.registrationUrl !== undefined && { registrationUrl: input.registrationUrl }),
       },
     });
 
@@ -164,14 +204,58 @@ export async function updateTemplate(
       }
     }
 
+    // Replace images if provided
+    if (input.images !== undefined) {
+      await tx.templateImage.deleteMany({ where: { templateId: id } });
+      if (input.images.length > 0) {
+        await tx.templateImage.createMany({
+          data: input.images.map((img, idx) => ({
+            templateId: id,
+            url: img.url,
+            alt: img.alt ?? null,
+            isPrimary: img.isPrimary ?? idx === 0,
+            sortOrder: img.sortOrder ?? idx,
+          })),
+        });
+      }
+    }
+
     return count;
   });
 }
 
+/** Soft delete — sets isArchived=true. Returns the count of matched rows. */
 export async function deleteTemplate(
   prisma: PrismaClient,
   id: string,
   studioId: string
 ) {
-  return prisma.workshopTemplate.deleteMany({ where: { id, studioId } });
+  return prisma.workshopTemplate.updateMany({
+    where: { id, studioId },
+    data: { isArchived: true },
+  });
+}
+
+/** Returns the number of events linked to this template (for delete confirmation). */
+export async function getTemplateEventCount(
+  prisma: PrismaClient,
+  id: string,
+  studioId: string
+): Promise<number> {
+  const result = await prisma.workshopEvent.count({
+    where: { templateId: id, studioId },
+  });
+  return result;
+}
+
+/** Increment usageCount — call when creating an event from a template. */
+export async function incrementTemplateUsage(
+  prisma: PrismaClient,
+  id: string,
+  studioId: string
+) {
+  return prisma.workshopTemplate.updateMany({
+    where: { id, studioId },
+    data: { usageCount: { increment: 1 } },
+  });
 }

@@ -90,7 +90,7 @@ export async function createEvent(
       location: input.location,
       notes: input.notes,
       templateId: input.templateId,
-      status: input.status ?? "draft",
+      status: input.status ?? "open",
     },
   });
 }

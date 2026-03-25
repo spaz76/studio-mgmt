@@ -86,6 +86,7 @@ enum ReminderType {
 }
 
 enum StockLogAction {
+  ordered
   purchase
   consumption
   adjustment
@@ -114,10 +115,16 @@ enum EventPricingModel {
   PACKAGE
 }
 
-enum AttendanceStatus {
-  ATTENDED
-  ABSENT
-  MADE_UP
+enum TaskStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskUrgency {
+  HIGH
+  NORMAL
+  LOW
 }
 
 // ─────────────────────────────────────────────
@@ -141,6 +148,26 @@ model Studio {
   maxProducts          Int      @default(100)
   vatRate              Decimal  @default(18.0) @db.Decimal(5, 2)
   pricesIncludeVat     Boolean  @default(true)
+
+  // Visual Identity
+  fontFamily           String?
+  fontSize             String?  @default("medium")
+
+  // Contact & Links
+  websiteUrl           String?
+  facebookUrl          String?
+  instagramUrl         String?
+  reviewsUrl           String?
+  phoneNumber          String?
+  whatsappNumber       String?
+  hasOwnWebsite        Boolean  @default(false)
+
+  // Payment integration
+  paymentUrl           String?  // external payment link (Morning/bit/PayBox)
+
+  // Invitation settings
+  inviteChannel        String?  @default("both") // email, whatsapp, both
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -156,6 +183,15 @@ model Studio {
   materials         Material[]
   materialStockLogs MaterialStockLog[]
   reminders         Reminder[]
+  messageTemplates  MessageTemplate[]
+  tasks             Task[]
+  integrations      StudioIntegration[]
+  kilns             Kiln[]
+  firings           Firing[]
+  firingTypes       FiringType[]
+  punchCards        PunchCard[]
+  categories        Category[]
+  attendances       Attendance[]
 }
 
 // ─────────────────────────────────────────────
@@ -248,17 +284,20 @@ model VerificationToken {
 // ─────────────────────────────────────────────
 
 model Customer {
-  id        String   @id @default(cuid())
-  studioId  String
-  name      String
-  email     String?
-  phone     String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  studioId               String
+  name                   String
+  email                  String?
+  phone                  String?
+  notes                  String?
+  tags                   String[]
+  preferredContactMethod String?  // email, phone, whatsapp, sms
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  studio   Studio    @relation(fields: [studioId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  studio     Studio      @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  bookings   Booking[]
+  punchCards PunchCard[]
 
   @@index([studioId])
   @@index([studioId, email])
@@ -285,7 +324,9 @@ model WorkshopTemplate {
 
   // Advanced: Recurrence (RECURRING)
   recurrenceFrequency  RecurrenceFrequency?
-  recurrenceDayOfWeek  Int?   // 0=Sunday … 6=Saturday
+  recurrenceDayOfWeek  Int?    // 0=Sunday … 6=Saturday
+  recurrenceStartTime  String? // HH:mm
+  recurrenceEndTime    String? // HH:mm
 
   // Advanced: Seasonal (SEASONAL)
   seasonStartMonth             Int?   // 1–12
@@ -310,14 +351,43 @@ model WorkshopTemplate {
   ageRangeMax              Int?
   requiresAdultSupervision Boolean @default(true)
 
+  // Phase B: Marketing & sharing
+  marketingText   String?
+  internalNotes   String?
+  registrationUrl String?
+
+  // Phase B: Lifecycle
+  isArchived Boolean @default(false)
+  usageCount Int     @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   studio           Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
   workshopEvents   WorkshopEvent[]
   packageLineItems PackageLineItem[]
+  images           TemplateImage[]
+  punchCards       PunchCard[]
 
   @@index([studioId])
+  @@index([studioId, isArchived])
+}
+
+// ─────────────────────────────────────────────
+// TEMPLATE IMAGES
+// ─────────────────────────────────────────────
+
+model TemplateImage {
+  id         String  @id @default(cuid())
+  templateId String
+  url        String
+  alt        String?
+  isPrimary  Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  template WorkshopTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
 }
 
 // ─────────────────────────────────────────────
@@ -343,14 +413,12 @@ model WorkshopEvent {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  studio            Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
-  template          WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  createdBy         User?             @relation("WorkshopCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  bookings          Booking[]
-  reminders         Reminder[]
-  packageLineItems  PackageLineItem[]
-  attendances       Attendance[]      @relation("AttendanceForEvent")
-  madeUpAttendances Attendance[]      @relation("AttendanceMadeUp")
+  studio           Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  template         WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy        User?             @relation("WorkshopCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  bookings         Booking[]
+  reminders        Reminder[]
+  packageLineItems PackageLineItem[]
 
   @@index([studioId])
   @@index([studioId, status])
@@ -377,6 +445,7 @@ model Booking {
   workshopEvent WorkshopEvent @relation(fields: [workshopEventId], references: [id], onDelete: Cascade)
   customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
   payments      Payment[]
+  attendance    Attendance?
 
   @@index([studioId])
   @@index([workshopEventId])
@@ -417,7 +486,9 @@ model Product {
   description String?
   skuBase     String
   category    String?
+  categoryId  String?
   imageUrl    String?
+  purchaseUrl String?
   isSeasonal  Boolean  @default(false)
   seasonStart Int?     // month number 1–12
   seasonEnd   Int?     // month number 1–12
@@ -425,12 +496,14 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  studio   Studio           @relation(fields: [studioId], references: [id], onDelete: Cascade)
-  variants ProductVariant[]
+  studio       Studio           @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  variants     ProductVariant[]
+  categoryRef  Category?        @relation("ProductCategory", fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@unique([studioId, skuBase])
   @@index([studioId])
   @@index([studioId, category])
+  @@index([categoryId])
 }
 
 // ─────────────────────────────────────────────
@@ -476,8 +549,24 @@ model Supplier {
 
   studio            Studio             @relation(fields: [studioId], references: [id], onDelete: Cascade)
   materialSuppliers MaterialSupplier[]
+  contacts          SupplierContact[]
 
   @@index([studioId])
+}
+
+model SupplierContact {
+  id         String   @id @default(cuid())
+  supplierId String
+  name       String
+  role       String?
+  phone      String?
+  extension  String?
+  email      String?
+  createdAt  DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
 }
 
 // ─────────────────────────────────────────────
@@ -485,26 +574,37 @@ model Supplier {
 // ─────────────────────────────────────────────
 
 model Material {
-  id               String   @id @default(cuid())
-  studioId         String
-  name             String
-  description      String?
-  unit             String   @default("יחידה")
-  stockQuantity    Decimal  @default(0) @db.Decimal(10, 3)
-  lowStockThreshold  Decimal  @default(5) @db.Decimal(10, 3)
-  orangeThreshold  Decimal  @default(10) @db.Decimal(10, 3)
-  redThreshold     Decimal  @default(3) @db.Decimal(10, 3)
-  barcode          String?
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String   @id @default(cuid())
+  studioId          String
+  name              String
+  description       String?
+  unit              String   @default("יחידה")
+  stockQuantity     Decimal  @default(0) @db.Decimal(10, 3)
+  lowStockThreshold Decimal  @default(5) @db.Decimal(10, 3)
+  orangeThreshold   Decimal  @default(10) @db.Decimal(10, 3)
+  redThreshold      Decimal  @default(3) @db.Decimal(10, 3)
+  barcode           String?
+  notes             String?
+  categoryId        String?
+  purchaseUrl       String?
+  pricePerUnit      Decimal? @db.Decimal(10, 2)
+  pricePerPackage   Decimal? @db.Decimal(10, 2)
+  packageSize       String?
+  width             String?
+  height            String?
+  minTemp           Int?
+  maxTemp           Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   studio            Studio             @relation(fields: [studioId], references: [id], onDelete: Cascade)
   materialSuppliers MaterialSupplier[]
   stockLogs         MaterialStockLog[]
   reminders         Reminder[]
+  categoryRef       Category?          @relation("MaterialCategory", fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([studioId])
+  @@index([categoryId])
 }
 
 // ─────────────────────────────────────────────
@@ -603,23 +703,227 @@ model PackageLineItem {
 }
 
 // ─────────────────────────────────────────────
-// ATTENDANCE (schema only — UI in Phase B)
+// ATTENDANCE
 // ─────────────────────────────────────────────
 
 model Attendance {
-  id              String           @id @default(cuid())
-  workshopEventId String
-  customerId      String
-  status          AttendanceStatus
-  madeUpEventId   String?
-  date            DateTime
-  notes           String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          String    @id @default(cuid())
+  studioId    String
+  bookingId   String
+  attended    Boolean   @default(false)
+  markedAt    DateTime?
+  punchCardId String?
+  notes       String?
+  createdAt   DateTime  @default(now())
 
-  workshopEvent WorkshopEvent  @relation("AttendanceForEvent", fields: [workshopEventId], references: [id], onDelete: Cascade)
-  madeUpEvent   WorkshopEvent? @relation("AttendanceMadeUp", fields: [madeUpEventId], references: [id], onDelete: SetNull)
+  studio    Studio     @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  booking   Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  punchCard PunchCard? @relation(fields: [punchCardId], references: [id], onDelete: SetNull)
 
-  @@index([workshopEventId])
+  @@unique([bookingId])
+  @@index([studioId])
+  @@index([bookingId])
+}
+
+// ─────────────────────────────────────────────
+// PUNCH CARDS
+// ─────────────────────────────────────────────
+
+model PunchCard {
+  id            String    @id @default(cuid())
+  studioId      String
+  customerId    String
+  templateId    String?
+  totalSessions Int
+  usedSessions  Int       @default(0)
+  paidAmount    Decimal   @default(0) @db.Decimal(10, 2)
+  purchasedAt   DateTime  @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  studio      Studio            @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  customer    Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  template    WorkshopTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  attendances Attendance[]
+
+  @@index([studioId])
   @@index([customerId])
+}
+
+// ─────────────────────────────────────────────
+// MESSAGE TEMPLATES
+// ─────────────────────────────────────────────
+
+model MessageTemplate {
+  id         String   @id @default(cuid())
+  studioId   String
+  type       String   // confirmation, reminder, thankyou, payment_reminder, feedback
+  level      String   @default("studio") // studio, template, event
+  templateId String?
+  eventId    String?
+  subject    String?
+  body       String
+  channel    String   // whatsapp, sms, email
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@index([studioId])
+  @@index([studioId, type, channel])
+}
+
+// ─────────────────────────────────────────────
+// TASKS (dashboard)
+// ─────────────────────────────────────────────
+
+enum TaskCategory {
+  manual
+  event
+  product
+  material
+  payment
+}
+
+model Task {
+  id                String       @id @default(cuid())
+  studioId          String
+  userId            String?
+  title             String
+  description       String?
+  dueDate           DateTime?
+  reminderDate      DateTime?
+  category          TaskCategory @default(manual)
+  status            TaskStatus   @default(NEW)
+  urgency           TaskUrgency  @default(NORMAL)
+  relatedId         String?
+  relatedCustomerId String?
+  relatedSupplierId String?
+  completed         Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@index([studioId])
+  @@index([studioId, completed])
+}
+
+// ─────────────────────────────────────────────
+// CATEGORIES (hierarchical)
+// ─────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(cuid())
+  studioId  String
+  name      String
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  studio    Studio     @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryTree")
+  products  Product[]  @relation("ProductCategory")
+  materials Material[] @relation("MaterialCategory")
+
+  @@index([studioId])
+  @@index([parentId])
+}
+
+// ─────────────────────────────────────────────
+// KILNS
+// ─────────────────────────────────────────────
+
+model Kiln {
+  id        String   @id @default(cuid())
+  studioId  String
+  name      String
+  type      String?  // electric, gas, wood, raku
+  maxTemp   Int?
+  capacity  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio      Studio       @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  firings     Firing[]
+  firingTypes FiringType[]
+
+  @@index([studioId])
+}
+
+model Firing {
+  id             String      @id @default(cuid())
+  kilnId         String
+  studioId       String
+  firingType     String      // bisque, glaze, raku, pit, custom
+  targetTemp     Int?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  status         String      @default("planned") // planned, loading, firing, cooling, unloading, completed
+  notes          String?
+  firingTypeId   String?
+  loadLevel      String?     // quarter/half/three_quarter/full
+  estimatedEndAt DateTime?
+  cooledAt       DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  kiln           Kiln        @relation(fields: [kilnId], references: [id], onDelete: Cascade)
+  studio         Studio      @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  firingTypePlan FiringType? @relation(fields: [firingTypeId], references: [id])
+
+  @@index([kilnId])
+  @@index([studioId])
+  @@index([firingTypeId])
+}
+
+model FiringType {
+  id        String        @id @default(cuid())
+  kilnId    String
+  kiln      Kiln          @relation(fields: [kilnId], references: [id], onDelete: Cascade)
+  studioId  String
+  studio    Studio        @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  name      String
+  stages    FiringStage[]
+  firings   Firing[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([kilnId])
+  @@index([studioId])
+}
+
+model FiringStage {
+  id              String     @id @default(cuid())
+  firingTypeId    String
+  firingType      FiringType @relation(fields: [firingTypeId], references: [id], onDelete: Cascade)
+  targetTemp      Int
+  durationMinutes Int
+  sortOrder       Int
+
+  @@index([firingTypeId])
+}
+
+// ─────────────────────────────────────────────
+// STUDIO INTEGRATIONS (Google Calendar etc.)
+// ─────────────────────────────────────────────
+
+model StudioIntegration {
+  id           String   @id @default(cuid())
+  studioId     String
+  provider     String   // "google_calendar"
+  accessToken  String?  @db.Text
+  refreshToken String?  @db.Text
+  calendarId   String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@unique([studioId, provider])
+  @@index([studioId])
 }

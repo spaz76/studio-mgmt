@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -51,7 +51,7 @@ export function EventForm({
   // Auto-compute end time when start time changes
   useEffect(() => {
     if (startsAt && !initialData) {
-      setEndsAt(addHours(startsAt, durationHours));
+      startTransition(() => setEndsAt(addHours(startsAt, durationHours)));
     }
   }, [startsAt, durationHours, initialData]);
 

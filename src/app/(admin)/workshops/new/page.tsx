@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { getStudioId } from "@/lib/studio";
@@ -48,12 +49,12 @@ export default async function NewEventPage({
           {templates.length > 0 ? (
             <>
               טיפ: תוכל{" "}
-              <a
+              <Link
                 href="/workshops/templates"
                 className="underline hover:no-underline"
               >
                 לבחור תבנית
-              </a>{" "}
+              </Link>{" "}
               כדי למלא ערכי ברירת מחדל
             </>
           ) : (
