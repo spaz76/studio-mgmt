@@ -166,13 +166,15 @@ describe("updateTemplate", () => {
 });
 
 describe("deleteTemplate", () => {
-  it("deletes a template", async () => {
+  it("soft-deletes (archives) a template", async () => {
     const template = await createTemplate(prisma, studioId, {
       name: "To Delete",
     });
 
     await deleteTemplate(prisma, template.id, studioId);
 
+    // deleteTemplate is a soft delete — sets isArchived=true
+    // getTemplate filters out archived records, so result should be null
     const result = await getTemplate(prisma, template.id, studioId);
     expect(result).toBeNull();
   });

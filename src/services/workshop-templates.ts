@@ -75,7 +75,7 @@ export async function getTemplate(
   studioId: string
 ) {
   return prisma.workshopTemplate.findFirst({
-    where: { id, studioId },
+    where: { id, studioId, isArchived: false },
     include: {
       packageLineItems: { orderBy: { sortOrder: "asc" } },
       images: { orderBy: { sortOrder: "asc" } },

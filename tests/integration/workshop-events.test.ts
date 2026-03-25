@@ -44,7 +44,7 @@ afterAll(async () => {
 });
 
 describe("createEvent", () => {
-  it("creates an event with default draft status", async () => {
+  it("creates an event with default open status", async () => {
     const event = await createEvent(prisma, studioId, userId, {
       title: "Spring Pottery",
       startsAt: new Date("2026-06-01T10:00:00Z"),
@@ -56,7 +56,7 @@ describe("createEvent", () => {
 
     expect(event.id).toBeDefined();
     expect(event.title).toBe("Spring Pottery");
-    expect(event.status).toBe("draft");
+    expect(event.status).toBe("open");
     expect(event.studioId).toBe(studioId);
     expect(event.createdById).toBe(userId);
   });
